@@ -21,7 +21,7 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
 # --- Configuration de la page ---
-st.set_page_config(page_title="Cartels - Expo A", page_icon="🖼️", layout="centered")
+st.set_page_config(page_title="Création de Cartels", page_icon="🖼️", layout="centered")
 
 st.title("🖼️ Générateur de cartels")
 st.write("Importez un fichier Excel contenant les œuvres, puis téléchargez le document Word généré.")
@@ -139,4 +139,5 @@ if uploaded:
 
 else:
     st.info("Chargez un fichier Excel (.xlsx) pour commencer.")
+
 
