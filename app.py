@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Nov  6 10:43:56 2025
-
 @author: EvaLa
 """
 
@@ -19,7 +18,8 @@ st.set_page_config(page_title="Générateur de cartels", page_icon="🖼️", la
 
 st.title("🖼️ Générateur de cartels")
 st.write("Cette interface permet de générer les cartels à partir de votre fichier Excel qui répertorie les œuvres d'art d'une exposition.")
-# Texte centré au-dessus du composant d’upload
+
+# Légende centrée au-dessus de l’uploader
 st.markdown(
     """
     <h4 style='text-align: center;'>📂 Insérer votre fichier Excel</h4>
@@ -71,27 +71,37 @@ if uploaded:
         st.error(f"Colonnes manquantes : {', '.join(missing)}")
         st.stop()
 
-    # Options de personnalisation
-    # Option de nom du fichier (marge fixe à 2 cm)
-        st.markdown(
-            "<div style='font-weight:600; margin-bottom:4px;'>"
-            "Nom du fichier Word (sans extension) <span style='color:#d00'>*</span>"
-            "</div>",
-            unsafe_allow_html=True
-            )
+    # --- Options (marge fixe + nom obligatoire) ---
+    st.markdown(
+        "<div style='font-weight:600; margin-bottom:4px;'>"
+        "Nom du fichier Word (sans extension) <span style='color:#d00'>*</span>"
+        "</div>",
+        unsafe_allow_html=True
+    )
+    nom_fichier = st.text_input(
+        label="",  # on masque le label natif
+        placeholder="Indiquer le nom du document",
+        key="nom_fichier_input",
+        label_visibility="collapsed"
+    )
+    marge_cm = 2.0  # marge fixe
 
-        nom_fichier = st.text_input(
-            label="",  # on masque le label natif, on garde notre label HTML au-dessus
-            placeholder="Indiquer le nom du document",
-            key="nom_fichier_input",
-            label_visibility="collapsed"
-            )
-
-        marge_cm = 2.0
-
-
-    # Bouton de génération
+    # --- Bouton de génération ---
     if st.button("🪄 Transformer"):
+        # Validation : nom de fichier obligatoire
+        if not nom_fichier.strip():
+            st.error("Veuillez indiquer le nom du document.")
+            # Mise en rouge du champ
+            st.markdown("""
+                <style>
+                div[data-testid="stTextInput"] input {
+                    border: 1px solid #d00 !important;
+                    box-shadow: 0 0 0 1px rgba(221,0,0,.25) !important;
+                }
+                </style>
+            """, unsafe_allow_html=True)
+            st.stop()
+
         # Création du document Word
         doc = Document()
         doc.core_properties.title = "Cartels - Expo A"
@@ -152,14 +162,3 @@ if uploaded:
             file_name=f"{nom_fichier}.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
-
-
-
-
-
-
-
-
-
-
-
