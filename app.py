@@ -73,23 +73,21 @@ if uploaded:
 
     # Options de personnalisation
     # Option de nom du fichier (marge fixe à 2 cm)
-st.markdown(
-    "<div style='font-weight:600; margin-bottom:4px;'>"
-    "Nom du fichier Word (sans extension) <span style='color:#d00'>*</span>"
-    "</div>",
-    unsafe_allow_html=True
-)
+        st.markdown(
+            "<div style='font-weight:600; margin-bottom:4px;'>"
+            "Nom du fichier Word (sans extension) <span style='color:#d00'>*</span>"
+            "</div>",
+            unsafe_allow_html=True
+            )
 
-nom_fichier = st.text_input(
-    label="",  # on masque le label natif, on garde notre label HTML au-dessus
-    placeholder="Indiquer le nom du document",
-    key="nom_fichier_input",
-    label_visibility="collapsed"
-)
+        nom_fichier = st.text_input(
+            label="",  # on masque le label natif, on garde notre label HTML au-dessus
+            placeholder="Indiquer le nom du document",
+            key="nom_fichier_input",
+            label_visibility="collapsed"
+            )
 
-marge_cm = 2.0
-# (Facultatif) une petite note
-# st.caption("📝 Marge du document fixée à 2 cm pour un rendu homogène.")
+        marge_cm = 2.0
 
 
     # Bouton de génération
