@@ -28,7 +28,7 @@ st.markdown(
 )
 
 # --- Uploader du fichier Excel ---
-uploaded = st.file_uploader("📂 Insérer votre fichier Excel", type=["xlsx", "xls"])
+uploaded = st.file_uploader("", type=["xlsx", "xls"])
 
 # --- Fonctions utilitaires ---
 def add_horizontal_rule(doc):
@@ -137,6 +137,7 @@ if uploaded:
             file_name=f"{nom_fichier}.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
+
 
 
 
