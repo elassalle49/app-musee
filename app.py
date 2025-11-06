@@ -5,12 +5,6 @@ Created on Thu Nov  6 10:43:56 2025
 @author: EvaLa
 """
 
-# -*- coding: utf-8 -*-
-"""
-Application Streamlit : Transformer un fichier Excel d'œuvres en un document Word "Cartels - Expo A"
-@author: Eva
-"""
-
 import io
 import pandas as pd
 import streamlit as st
@@ -139,5 +133,6 @@ if uploaded:
 
 else:
     st.info("Chargez un fichier Excel (.xlsx) pour commencer.")
+
 
 
