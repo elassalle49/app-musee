@@ -131,8 +131,6 @@ if uploaded:
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
 
-else:
-    st.info("Chargez un fichier Excel (.xlsx) pour commencer.")
 
 
 
