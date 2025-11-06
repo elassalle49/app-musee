@@ -19,6 +19,13 @@ st.set_page_config(page_title="Générateur de cartels", page_icon="🖼️", la
 
 st.title("🖼️ Générateur de cartels")
 st.write("Cette interface permet de générer les cartels à partir de votre fichier Excel qui répertorie les œuvres d'art d'une exposition.")
+# Texte centré au-dessus du composant d’upload
+st.markdown(
+    """
+    <h4 style='text-align: center;'>📂 Insérer votre fichier Excel</h4>
+    """,
+    unsafe_allow_html=True
+)
 
 # --- Uploader du fichier Excel ---
 uploaded = st.file_uploader("📂 Insérer votre fichier Excel", type=["xlsx", "xls"])
@@ -130,6 +137,7 @@ if uploaded:
             file_name=f"{nom_fichier}.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
+
 
 
 
