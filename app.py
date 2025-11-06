@@ -72,11 +72,25 @@ if uploaded:
         st.stop()
 
     # Options de personnalisation
-    nom_fichier = st.text_input(
-    "Nom du fichier Word (sans extension)",
-    placeholder="Indiquer le nom du document"
-    )
-    marge_cm = 2.0
+    # Option de nom du fichier (marge fixe à 2 cm)
+st.markdown(
+    "<div style='font-weight:600; margin-bottom:4px;'>"
+    "Nom du fichier Word (sans extension) <span style='color:#d00'>*</span>"
+    "</div>",
+    unsafe_allow_html=True
+)
+
+nom_fichier = st.text_input(
+    label="",  # on masque le label natif, on garde notre label HTML au-dessus
+    placeholder="Indiquer le nom du document",
+    key="nom_fichier_input",
+    label_visibility="collapsed"
+)
+
+marge_cm = 2.0
+# (Facultatif) une petite note
+# st.caption("📝 Marge du document fixée à 2 cm pour un rendu homogène.")
+
 
     # Bouton de génération
     if st.button("🪄 Transformer"):
@@ -140,6 +154,7 @@ if uploaded:
             file_name=f"{nom_fichier}.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
+
 
 
 
