@@ -72,7 +72,10 @@ if uploaded:
         st.stop()
 
     # Options de personnalisation
-    nom_fichier = st.text_input("Nom du fichier Word (sans extension)")
+    nom_fichier = st.text_input(
+    "Nom du fichier Word (sans extension)",
+    placeholder="Indiquer le nom du document"
+    )
     marge_cm = 2.0
 
     # Bouton de génération
@@ -137,6 +140,7 @@ if uploaded:
             file_name=f"{nom_fichier}.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
+
 
 
 
