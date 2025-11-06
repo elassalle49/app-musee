@@ -72,8 +72,8 @@ if uploaded:
         st.stop()
 
     # Options de personnalisation
-    nom_fichier = st.text_input("Nom du fichier Word (sans extension)", value="Cartels - Expo A")
-    marge_cm = st.slider("Marge du document (cm)", 1.5, 3.0, 2.0, 0.5)
+    nom_fichier = st.text_input("Nom du fichier Word (sans extension)")
+    marge_cm = 2.0
 
     # Bouton de génération
     if st.button("🪄 Transformer"):
@@ -137,6 +137,7 @@ if uploaded:
             file_name=f"{nom_fichier}.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
+
 
 
 
