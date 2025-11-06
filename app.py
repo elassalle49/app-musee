@@ -15,10 +15,10 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
 # --- Configuration de la page ---
-st.set_page_config(page_title="Générateur de Cartels", page_icon="🖼️", layout="centered")
+st.set_page_config(page_title="Générateur de cartels", page_icon="🖼️", layout="centered")
 
 st.title("🖼️ Générateur de cartels")
-st.write("Importez un fichier Excel contenant les œuvres, puis téléchargez le document Word généré.")
+st.write("Cette interface permet de générer les cartels à partir de votre fichier Excel qui répertorie les œuvres d'art d'une exposition.")
 
 # --- Uploader du fichier Excel ---
 uploaded = st.file_uploader("📂 Insérer votre fichier Excel", type=["xlsx", "xls"])
@@ -133,6 +133,7 @@ if uploaded:
 
 else:
     st.info("Chargez un fichier Excel (.xlsx) pour commencer.")
+
 
 
 
