@@ -4,6 +4,7 @@ Générateur de cartels à partir d'un fichier Excel musée
 - lecture des colonnes sur la 2e ligne (header=1)
 - choix de l'onglet : Liste, Repro, ou les deux
 - choix des champs à afficher via cases à cocher
+- mise en page fixe des cartels
 - gestion robuste des doublons de colonnes
 - export Word
 """
@@ -144,9 +145,7 @@ def safe(val):
 
 
 def get_cell_value(row, column_name):
-    """
-    Récupère une valeur de cellule de façon robuste.
-    """
+    """Récupère une valeur de cellule de façon robuste."""
     if column_name in row.index:
         return safe(row[column_name])
     return ""
@@ -164,17 +163,13 @@ def read_sheet(uploaded_file, sheet_name):
 
 
 def validate_required_columns(df, required_fields):
-    """
-    Vérifie la présence des colonnes obligatoires exactes.
-    """
+    """Vérifie la présence des colonnes obligatoires exactes."""
     missing = [col for col in required_fields if col not in df.columns]
     return missing
 
 
 def drop_empty_rows(df, required_fields):
-    """
-    Supprime les lignes sans contenu utile sur les champs obligatoires.
-    """
+    """Supprime les lignes sans contenu utile sur les champs obligatoires."""
     working_df = df.copy()
 
     for col in required_fields:
@@ -188,70 +183,115 @@ def drop_empty_rows(df, required_fields):
     return working_df[mask].reset_index(drop=True)
 
 
-def build_cartel_lines(row, selected_fields):
+def build_same_line_block(row, selected_fields):
     """
-    Transforme une ligne en blocs de texte selon les champs choisis.
-    Le titre est géré à part pour être mis en avant visuellement.
+    Construit la ligne commune :
+    Mention Collection pour le cartel, Auteur / Exécutant, Date auteur/exécutant
     """
-    lines = []
+    parts = []
 
-    ordered_fields = [
-        "Auteur / Exécutant",
-        "Date auteur/exécutant",
-        "Editeur",
-        "Provenance",
-        "Date",
-        "Technique(s) de l'œuvre originale",
-        "Mention Collection pour le cartel",
-        "Information sur l'acquisition",
-    ]
+    if "Mention Collection pour le cartel" in selected_fields:
+        mention = get_cell_value(row, "Mention Collection pour le cartel")
+        if mention:
+            parts.append(mention)
 
-    for field in ordered_fields:
-        if field in selected_fields:
-            value = get_cell_value(row, field)
-            if value:
-                lines.append((field, value))
+    if "Auteur / Exécutant" in selected_fields:
+        auteur = get_cell_value(row, "Auteur / Exécutant")
+        if auteur:
+            parts.append(auteur)
 
-    return lines
+    if "Date auteur/exécutant" in selected_fields:
+        date_auteur = get_cell_value(row, "Date auteur/exécutant")
+        if date_auteur:
+            parts.append(date_auteur)
+
+    return " — ".join(parts)
 
 
 def add_cartel_to_doc(doc, row, selected_fields, source_sheet=None):
     """
-    Ajoute un cartel au document.
+    Ajoute un cartel au document avec l'ordre demandé :
+    1. Titre
+    2. Provenance
+    3. Date
+    4. Technique(s) de l'œuvre originale
+    5. Mention Collection pour le cartel + Auteur / Exécutant + Date auteur/exécutant
+    6. Editeur
+    7. Information sur l'acquisition
     """
     titre = get_cell_value(row, "Titre") or "Sans titre"
 
+    # 1. Titre
     p_titre = doc.add_paragraph()
+    p_titre.paragraph_format.space_after = Pt(2)
     r_titre = p_titre.add_run(titre)
     r_titre.bold = True
     r_titre.font.size = Pt(14)
 
+    # 2. Provenance
+    if "Provenance" in selected_fields:
+        provenance = get_cell_value(row, "Provenance")
+        if provenance:
+            p = doc.add_paragraph()
+            p.paragraph_format.space_after = Pt(1)
+            r = p.add_run(provenance)
+            r.font.size = Pt(10.5)
+
+    # 3. Date
+    if "Date" in selected_fields:
+        date_oeuvre = get_cell_value(row, "Date")
+        if date_oeuvre:
+            p = doc.add_paragraph()
+            p.paragraph_format.space_after = Pt(1)
+            r = p.add_run(date_oeuvre)
+            r.font.size = Pt(10.5)
+
+    # 4. Technique(s) de l'œuvre originale
+    if "Technique(s) de l'œuvre originale" in selected_fields:
+        technique = get_cell_value(row, "Technique(s) de l'œuvre originale")
+        if technique:
+            p = doc.add_paragraph()
+            p.paragraph_format.space_after = Pt(1)
+            r = p.add_run(technique)
+            r.font.size = Pt(10.5)
+
+    # 5. Ligne commune
+    ligne_commune = build_same_line_block(row, selected_fields)
+    if ligne_commune:
+        p = doc.add_paragraph()
+        p.paragraph_format.space_after = Pt(1)
+        r = p.add_run(ligne_commune)
+        r.font.size = Pt(10.5)
+
+    # 6. Editeur
+    if "Editeur" in selected_fields:
+        editeur = get_cell_value(row, "Editeur")
+        if editeur:
+            p = doc.add_paragraph()
+            p.paragraph_format.space_after = Pt(1)
+            r = p.add_run(editeur)
+            r.font.size = Pt(10.5)
+
+    # 7. Information sur l'acquisition
+    if "Information sur l'acquisition" in selected_fields:
+        acquisition = get_cell_value(row, "Information sur l'acquisition")
+        if acquisition:
+            p = doc.add_paragraph()
+            p.paragraph_format.space_after = Pt(0)
+            r = p.add_run(acquisition)
+            r.font.size = Pt(10.5)
+
+    # Affichage optionnel de l'onglet source si un seul onglet sélectionné
     if source_sheet:
         p_sheet = doc.add_paragraph()
+        p_sheet.paragraph_format.space_before = Pt(3)
         r_sheet = p_sheet.add_run(f"Onglet : {source_sheet}")
         r_sheet.italic = True
-        r_sheet.font.size = Pt(9)
-
-    lines = build_cartel_lines(row, selected_fields)
-    for field, value in lines:
-        p = doc.add_paragraph()
-        r_label = p.add_run(f"{field} : ")
-        r_label.bold = True
-        r_label.font.size = Pt(10.5)
-
-        r_val = p.add_run(value)
-        r_val.font.size = Pt(10.5)
+        r_sheet.font.size = Pt(8.5)
 
 
 def create_word_document(data_by_sheet, selected_fields, document_title, one_cartel_per_page):
-    """
-    Crée le document Word final.
-
-    data_by_sheet = {
-        "Liste": dataframe,
-        "Repro": dataframe
-    }
-    """
+    """Crée le document Word final."""
     doc = Document()
     doc.core_properties.title = document_title
 
@@ -441,7 +481,7 @@ if uploaded:
                 st.warning(f"Aucune ligne exploitable trouvée dans l'onglet '{sheet_name}'.")
                 continue
 
-            cols_to_keep = [col for col in ["Titre"] + selected_fields if col in filtered_df.columns]
+            cols_to_keep = [col for col in ALL_FIELDS if col in filtered_df.columns]
             export_data[sheet_name] = filtered_df[cols_to_keep].copy()
 
         if not export_data:
