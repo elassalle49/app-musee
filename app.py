@@ -4,7 +4,13 @@ Created on Thu Nov  6 10:43:56 2025
 @author: EvaLa
 """
 
+# -*- coding: utf-8 -*-
+"""
+Générateur de cartels à partir d'un fichier Excel musée
+"""
+
 import io
+import re
 import pandas as pd
 import streamlit as st
 from docx import Document
@@ -13,85 +19,365 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
-# --- Configuration de la page ---
+
+# -----------------------------
+# Configuration de la page
+# -----------------------------
 st.set_page_config(page_title="Générateur de cartels", page_icon="🖼️", layout="centered")
 
 st.title("🖼️ Générateur de cartels")
-st.write("Cette interface permet de générer les cartels à partir de votre fichier Excel qui répertorie les œuvres d'art d'une exposition.")
+st.write(
+    "Cette interface permet de générer des cartels à partir d’un fichier Excel "
+    "fourni par le musée."
+)
 
-# Légende centrée au-dessus de l’uploader
 st.markdown(
-    """
-    <h4 style='text-align: center;'>📂 Insérer votre fichier Excel</h4>
-    """,
+    "<h4 style='text-align: center;'>📂 Insérer votre fichier Excel</h4>",
     unsafe_allow_html=True
 )
 
-# --- Uploader du fichier Excel ---
 uploaded = st.file_uploader("", type=["xlsx", "xls"])
 
-# --- Fonctions utilitaires ---
+
+# -----------------------------
+# Constantes
+# -----------------------------
+ALL_FIELDS = [
+    "Auteur / Exécutant",
+    "Date auteur/exécutant",
+    "Editeur",
+    "Titre",
+    "Provenance",
+    "Date",
+    "Technique(s) de l'œuvre originale",
+    "Mention Collection pour le cartel",
+    "Information sur l'acquisition",
+]
+
+REQUIRED_FIELDS = [
+    "Titre",
+    "Technique(s) de l'œuvre originale",
+    "Mention Collection pour le cartel",
+]
+
+SHEET_OPTIONS = ["Liste", "Repro"]
+
+
+# -----------------------------
+# Fonctions utilitaires
+# -----------------------------
 def add_horizontal_rule(doc):
     """Ajoute une ligne horizontale comme séparateur."""
     p = doc.add_paragraph()
     p_par = p._p
     pPr = p_par.get_or_add_pPr()
-    pBdr = OxmlElement('w:pBdr')
-    bottom = OxmlElement('w:bottom')
-    bottom.set(qn('w:val'), 'single')  # style de ligne
-    bottom.set(qn('w:sz'), '12')       # épaisseur
-    bottom.set(qn('w:space'), '1')     # espace
-    bottom.set(qn('w:color'), 'auto')  # couleur
+    pBdr = OxmlElement("w:pBdr")
+    bottom = OxmlElement("w:bottom")
+    bottom.set(qn("w:val"), "single")
+    bottom.set(qn("w:sz"), "12")
+    bottom.set(qn("w:space"), "1")
+    bottom.set(qn("w:color"), "auto")
     pBdr.append(bottom)
     pPr.append(pBdr)
 
+
 def safe(val):
-    return "" if pd.isna(val) else str(val)
+    """Renvoie une chaîne propre."""
+    if pd.isna(val):
+        return ""
+    return str(val).strip()
 
-required_cols = ["Titre de l'œuvre", "Artiste", "Date de création", "Description"]
 
-# --- Si un fichier a été chargé ---
+def clean_filename(name):
+    """Nettoie le nom du fichier."""
+    name = name.strip()
+    name = re.sub(r'[\\/*?:"<>|]', "_", name)
+    return name
+
+
+def normalize_columns(df):
+    """Nettoie les noms de colonnes."""
+    df.columns = [str(col).strip() for col in df.columns]
+    return df
+
+
+def read_sheet(uploaded_file, sheet_name):
+    """
+    Lit un onglet Excel en considérant que :
+    - la 1ère ligne n'est pas à prendre en compte
+    - les colonnes sont sur la 2ème ligne
+    => header=1
+    """
+    df = pd.read_excel(uploaded_file, sheet_name=sheet_name, header=1)
+    df = normalize_columns(df)
+    return df
+
+
+def validate_required_columns(df, required_fields):
+    missing = [col for col in required_fields if col not in df.columns]
+    return missing
+
+
+def drop_empty_rows(df, required_fields):
+    """
+    Supprime les lignes sans contenu utile sur les champs obligatoires.
+    """
+    working_df = df.copy()
+
+    for col in required_fields:
+        if col in working_df.columns:
+            working_df[col] = working_df[col].apply(safe)
+
+    mask = working_df[required_fields].apply(
+        lambda row: any(val != "" for val in row),
+        axis=1
+    )
+    return working_df[mask].reset_index(drop=True)
+
+
+def build_cartel_lines(row, selected_fields):
+    """
+    Transforme une ligne en blocs de texte selon les champs choisis.
+    Le titre est géré à part pour être mis en avant visuellement.
+    """
+    lines = []
+
+    ordered_fields = [
+        "Auteur / Exécutant",
+        "Date auteur/exécutant",
+        "Editeur",
+        "Provenance",
+        "Date",
+        "Technique(s) de l'œuvre originale",
+        "Mention Collection pour le cartel",
+        "Information sur l'acquisition",
+    ]
+
+    for field in ordered_fields:
+        if field in selected_fields:
+            value = safe(row.get(field))
+            if value:
+                lines.append((field, value))
+
+    return lines
+
+
+def add_cartel_to_doc(doc, row, selected_fields, source_sheet=None):
+    """
+    Ajoute un cartel au document.
+    """
+    titre = safe(row.get("Titre")) or "Sans titre"
+
+    # Titre
+    p_titre = doc.add_paragraph()
+    r_titre = p_titre.add_run(titre)
+    r_titre.bold = True
+    r_titre.font.size = Pt(14)
+
+    # Optionnel : mention de l'onglet source
+    if source_sheet:
+        p_sheet = doc.add_paragraph()
+        r_sheet = p_sheet.add_run(f"Onglet : {source_sheet}")
+        r_sheet.italic = True
+        r_sheet.font.size = Pt(9)
+
+    # Autres champs choisis
+    lines = build_cartel_lines(row, selected_fields)
+    for field, value in lines:
+        p = doc.add_paragraph()
+        r_label = p.add_run(f"{field} : ")
+        r_label.bold = True
+        r_label.font.size = Pt(10.5)
+
+        r_val = p.add_run(value)
+        r_val.font.size = Pt(10.5)
+
+
+def create_word_document(data_by_sheet, selected_fields, document_title, one_cartel_per_page):
+    """
+    Crée le document Word final.
+    data_by_sheet = {
+        "Liste": dataframe,
+        "Repro": dataframe
+    }
+    """
+    doc = Document()
+    doc.core_properties.title = document_title
+
+    for sec in doc.sections:
+        sec.top_margin = Cm(2.0)
+        sec.bottom_margin = Cm(2.0)
+        sec.left_margin = Cm(2.0)
+        sec.right_margin = Cm(2.0)
+
+    # Titre principal
+    title_p = doc.add_paragraph()
+    title_run = title_p.add_run(document_title)
+    title_run.bold = True
+    title_run.font.size = Pt(20)
+    title_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_paragraph()
+
+    sheet_names = list(data_by_sheet.keys())
+
+    for sheet_index, sheet_name in enumerate(sheet_names):
+        df = data_by_sheet[sheet_name]
+
+        # Petit intertitre d'onglet si plusieurs onglets sélectionnés
+        if len(sheet_names) > 1:
+            p_sheet_title = doc.add_paragraph()
+            r_sheet_title = p_sheet_title.add_run(sheet_name)
+            r_sheet_title.bold = True
+            r_sheet_title.font.size = Pt(16)
+            doc.add_paragraph()
+
+        for row_index, (_, row) in enumerate(df.iterrows()):
+            add_cartel_to_doc(
+                doc=doc,
+                row=row,
+                selected_fields=selected_fields,
+                source_sheet=sheet_name if len(sheet_names) == 1 else None
+            )
+
+            is_last_row_of_sheet = row_index == len(df) - 1
+            is_last_sheet = sheet_index == len(sheet_names) - 1
+
+            if not (is_last_row_of_sheet and is_last_sheet):
+                if one_cartel_per_page:
+                    doc.add_page_break()
+                else:
+                    doc.add_paragraph()
+                    add_horizontal_rule(doc)
+                    doc.add_paragraph()
+
+        # espace entre deux onglets si plusieurs onglets et pas de saut de page systématique
+        if len(sheet_names) > 1 and not one_cartel_per_page and not is_last_sheet:
+            doc.add_paragraph()
+            doc.add_paragraph()
+
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    return buffer
+
+
+# -----------------------------
+# Interface principale
+# -----------------------------
 if uploaded:
     try:
-        df = pd.read_excel(uploaded)
+        excel_file = pd.ExcelFile(uploaded)
+        available_sheets = excel_file.sheet_names
     except Exception as e:
         st.error(f"Erreur de lecture du fichier Excel : {e}")
         st.stop()
 
-    if df.empty:
-        st.warning("Le fichier est vide.")
+    st.subheader("Paramètres")
+
+    # Choix des onglets
+    selectable_sheets = [s for s in SHEET_OPTIONS if s in available_sheets]
+
+    if not selectable_sheets:
+        st.error(
+            "Les onglets attendus ('Liste' et/ou 'Repro') n'ont pas été trouvés dans le fichier."
+        )
         st.stop()
 
-    st.subheader("Aperçu des données")
-    st.dataframe(df.head(10), use_container_width=True)
+    selected_sheets = st.multiselect(
+        "Choisir le ou les onglets à utiliser",
+        options=selectable_sheets,
+        default=selectable_sheets
+    )
 
-    # Vérification des colonnes nécessaires
-    missing = [c for c in required_cols if c not in df.columns]
-    if missing:
-        st.error(f"Colonnes manquantes : {', '.join(missing)}")
+    if not selected_sheets:
+        st.warning("Veuillez sélectionner au moins un onglet.")
         st.stop()
 
-    # --- Options (marge fixe + nom obligatoire) ---
+    # Lecture d'aperçu du premier onglet choisi
+    preview_sheet = selected_sheets[0]
+    try:
+        preview_df = read_sheet(uploaded, preview_sheet)
+    except Exception as e:
+        st.error(f"Erreur de lecture de l'onglet '{preview_sheet}' : {e}")
+        st.stop()
+
+    if preview_df.empty:
+        st.warning(f"L'onglet '{preview_sheet}' est vide.")
+    else:
+        st.subheader(f"Aperçu des données — onglet {preview_sheet}")
+        st.dataframe(preview_df.head(10), use_container_width=True)
+
+    # Vérification des champs obligatoires sur chaque onglet sélectionné
+    invalid_sheets = {}
+    loaded_sheets = {}
+
+    for sheet in selected_sheets:
+        try:
+            df_sheet = read_sheet(uploaded, sheet)
+            loaded_sheets[sheet] = df_sheet
+            missing = validate_required_columns(df_sheet, REQUIRED_FIELDS)
+            if missing:
+                invalid_sheets[sheet] = missing
+        except Exception as e:
+            st.error(f"Erreur de lecture de l'onglet '{sheet}' : {e}")
+            st.stop()
+
+    if invalid_sheets:
+        for sheet, missing in invalid_sheets.items():
+            st.error(
+                f"Onglet '{sheet}' : colonnes obligatoires manquantes : {', '.join(missing)}"
+            )
+        st.stop()
+
+    # Liste des champs disponibles réellement trouvés
+    available_fields = []
+    for field in ALL_FIELDS:
+        if any(field in df.columns for df in loaded_sheets.values()):
+            available_fields.append(field)
+
+    st.markdown("### Champs à afficher sur les cartels")
+
+    default_selected_fields = REQUIRED_FIELDS.copy()
+
+    selected_fields = st.multiselect(
+        "Sélectionner les champs à faire apparaître",
+        options=available_fields,
+        default=[field for field in default_selected_fields if field in available_fields]
+    )
+
+    # Forcer la présence des champs obligatoires
+    missing_required_in_selection = [f for f in REQUIRED_FIELDS if f not in selected_fields]
+    if missing_required_in_selection:
+        st.warning(
+            "Les champs obligatoires seront toujours inclus : "
+            + ", ".join(missing_required_in_selection)
+        )
+        selected_fields = list(dict.fromkeys(selected_fields + missing_required_in_selection))
+
     st.markdown(
         "<div style='font-weight:600; margin-bottom:4px;'>"
         "Nom du fichier Word (sans extension) <span style='color:#d00'>*</span>"
         "</div>",
         unsafe_allow_html=True
     )
+
     nom_fichier = st.text_input(
-        label="",  # on masque le label natif
+        label="",
         placeholder="Indiquer le nom du document",
         key="nom_fichier_input",
         label_visibility="collapsed"
     )
-    marge_cm = 2.0  # marge fixe
 
-    # --- Bouton de génération ---
+    titre_document = st.text_input(
+        "Titre du document",
+        value="Cartels"
+    )
+
+    one_cartel_per_page = st.checkbox("Un cartel par page", value=False)
+
     if st.button("🪄 Transformer"):
-        # Validation : nom de fichier obligatoire
         if not nom_fichier.strip():
             st.error("Veuillez indiquer le nom du document.")
-            # Mise en rouge du champ
             st.markdown("""
                 <style>
                 div[data-testid="stTextInput"] input {
@@ -102,60 +388,40 @@ if uploaded:
             """, unsafe_allow_html=True)
             st.stop()
 
-        # Création du document Word
-        doc = Document()
-        doc.core_properties.title = "Cartels - Expo A"
+        nom_fichier = clean_filename(nom_fichier)
+        if not nom_fichier:
+            st.error("Le nom du fichier n'est pas valide.")
+            st.stop()
 
-        for sec in doc.sections:
-            sec.top_margin = Cm(marge_cm)
-            sec.bottom_margin = Cm(marge_cm)
-            sec.left_margin = Cm(marge_cm)
-            sec.right_margin = Cm(marge_cm)
+        export_data = {}
 
-        # Titre principal
-        title_p = doc.add_paragraph()
-        title_run = title_p.add_run("Cartels - Expo A")
-        title_run.bold = True
-        title_run.font.size = Pt(20)
-        title_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        doc.add_paragraph()
+        for sheet_name, df_sheet in loaded_sheets.items():
+            filtered_df = drop_empty_rows(df_sheet, REQUIRED_FIELDS)
 
-        # Boucle sur les œuvres
-        for _, row in df.iterrows():
-            titre = safe(row["Titre de l'œuvre"])
-            artiste = safe(row["Artiste"])
-            date = safe(row["Date de création"])
-            desc = safe(row["Description"])
+            if filtered_df.empty:
+                st.warning(
+                    f"Aucune ligne exploitable trouvée dans l'onglet '{sheet_name}'."
+                )
+                continue
 
-            # Titre
-            p_titre = doc.add_paragraph()
-            r_titre = p_titre.add_run(titre if titre else "Sans titre")
-            r_titre.bold = True
-            r_titre.font.size = Pt(14)
+            # On conserve seulement les colonnes utiles si elles existent
+            cols_to_keep = [col for col in ["Titre"] + selected_fields if col in filtered_df.columns]
+            export_data[sheet_name] = filtered_df[cols_to_keep].copy()
 
-            # Artiste + Date
-            p_meta = doc.add_paragraph()
-            r_meta = p_meta.add_run(f"{artiste} — {date}".strip(" —"))
-            r_meta.italic = True
-            r_meta.font.size = Pt(11)
+        if not export_data:
+            st.error("Aucune donnée exploitable n'a été trouvée pour générer les cartels.")
+            st.stop()
 
-            # Description
-            if desc:
-                p_desc = doc.add_paragraph(desc)
-                for r in p_desc.runs:
-                    r.font.size = Pt(11)
+        buffer = create_word_document(
+            data_by_sheet=export_data,
+            selected_fields=selected_fields,
+            document_title=titre_document,
+            one_cartel_per_page=one_cartel_per_page
+        )
 
-            # Séparateur
-            doc.add_paragraph()
-            add_horizontal_rule(doc)
-            doc.add_paragraph()
+        total_cartels = sum(len(df) for df in export_data.values())
 
-        # Sauvegarde en mémoire
-        buffer = io.BytesIO()
-        doc.save(buffer)
-        buffer.seek(0)
-
-        st.success("✅ Document généré avec succès !")
+        st.success(f"✅ Document généré avec succès ({total_cartels} cartel(s)) !")
         st.download_button(
             label="📥 Télécharger le fichier Word",
             data=buffer,
