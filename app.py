@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Nov  6 10:43:56 2025
-@author: EvaLa
-"""
-
-# -*- coding: utf-8 -*-
-"""
 Générateur de cartels à partir d'un fichier Excel musée
+- lecture des colonnes sur la 2e ligne (header=1)
+- choix de l'onglet : Liste, Repro, ou les deux
+- choix des champs à afficher via cases à cocher
+- gestion robuste des doublons de colonnes
+- export Word
 """
 
 import io
@@ -20,15 +19,18 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
 
-# -----------------------------
+# --------------------------------------------------
 # Configuration de la page
-# -----------------------------
-st.set_page_config(page_title="Générateur de cartels", page_icon="🖼️", layout="centered")
+# --------------------------------------------------
+st.set_page_config(
+    page_title="Générateur de cartels",
+    page_icon="🖼️",
+    layout="centered"
+)
 
 st.title("🖼️ Générateur de cartels")
 st.write(
-    "Cette interface permet de générer des cartels à partir d’un fichier Excel "
-    "fourni par le musée."
+    "Cette interface permet de générer des cartels à partir d’un fichier Excel fourni par le musée."
 )
 
 st.markdown(
@@ -39,9 +41,9 @@ st.markdown(
 uploaded = st.file_uploader("", type=["xlsx", "xls"])
 
 
-# -----------------------------
+# --------------------------------------------------
 # Constantes
-# -----------------------------
+# --------------------------------------------------
 ALL_FIELDS = [
     "Auteur / Exécutant",
     "Date auteur/exécutant",
@@ -60,12 +62,12 @@ REQUIRED_FIELDS = [
     "Mention Collection pour le cartel",
 ]
 
-SHEET_OPTIONS = ["Liste", "Repro"]
+EXPECTED_SHEETS = ["Liste", "Repro"]
 
 
-# -----------------------------
+# --------------------------------------------------
 # Fonctions utilitaires
-# -----------------------------
+# --------------------------------------------------
 def add_horizontal_rule(doc):
     """Ajoute une ligne horizontale comme séparateur."""
     p = doc.add_paragraph()
@@ -81,32 +83,80 @@ def add_horizontal_rule(doc):
     pPr.append(pBdr)
 
 
-def safe(val):
-    """Renvoie une chaîne propre."""
-    if pd.isna(val):
-        return ""
-    return str(val).strip()
-
-
 def clean_filename(name):
     """Nettoie le nom du fichier."""
-    name = name.strip()
+    name = str(name).strip()
     name = re.sub(r'[\\/*?:"<>|]', "_", name)
     return name
 
 
+def make_unique_columns(columns):
+    """
+    Rend les noms de colonnes uniques.
+    Exemple :
+    ['Titre', 'Titre'] -> ['Titre', 'Titre__2']
+    """
+    seen = {}
+    new_cols = []
+
+    for col in columns:
+        col = str(col).strip()
+        if col in seen:
+            seen[col] += 1
+            new_cols.append(f"{col}__{seen[col]}")
+        else:
+            seen[col] = 1
+            new_cols.append(col)
+
+    return new_cols
+
+
 def normalize_columns(df):
-    """Nettoie les noms de colonnes."""
-    df.columns = [str(col).strip() for col in df.columns]
+    """Nettoie et rend uniques les noms de colonnes."""
+    df.columns = make_unique_columns(df.columns)
     return df
+
+
+def safe(val):
+    """
+    Renvoie une chaîne propre, même si val est une Series ou une liste.
+    """
+    if val is None:
+        return ""
+
+    if isinstance(val, pd.Series):
+        vals = [safe(v) for v in val.tolist()]
+        vals = [v for v in vals if v]
+        return " | ".join(vals)
+
+    if isinstance(val, (list, tuple)):
+        vals = [safe(v) for v in val]
+        vals = [v for v in vals if v]
+        return " | ".join(vals)
+
+    try:
+        if pd.isna(val):
+            return ""
+    except Exception:
+        pass
+
+    return str(val).strip()
+
+
+def get_cell_value(row, column_name):
+    """
+    Récupère une valeur de cellule de façon robuste.
+    """
+    if column_name in row.index:
+        return safe(row[column_name])
+    return ""
 
 
 def read_sheet(uploaded_file, sheet_name):
     """
     Lit un onglet Excel en considérant que :
     - la 1ère ligne n'est pas à prendre en compte
-    - les colonnes sont sur la 2ème ligne
-    => header=1
+    - les en-têtes sont sur la 2ème ligne
     """
     df = pd.read_excel(uploaded_file, sheet_name=sheet_name, header=1)
     df = normalize_columns(df)
@@ -114,6 +164,9 @@ def read_sheet(uploaded_file, sheet_name):
 
 
 def validate_required_columns(df, required_fields):
+    """
+    Vérifie la présence des colonnes obligatoires exactes.
+    """
     missing = [col for col in required_fields if col not in df.columns]
     return missing
 
@@ -155,7 +208,7 @@ def build_cartel_lines(row, selected_fields):
 
     for field in ordered_fields:
         if field in selected_fields:
-            value = safe(row.get(field))
+            value = get_cell_value(row, field)
             if value:
                 lines.append((field, value))
 
@@ -166,22 +219,19 @@ def add_cartel_to_doc(doc, row, selected_fields, source_sheet=None):
     """
     Ajoute un cartel au document.
     """
-    titre = safe(row.get("Titre")) or "Sans titre"
+    titre = get_cell_value(row, "Titre") or "Sans titre"
 
-    # Titre
     p_titre = doc.add_paragraph()
     r_titre = p_titre.add_run(titre)
     r_titre.bold = True
     r_titre.font.size = Pt(14)
 
-    # Optionnel : mention de l'onglet source
     if source_sheet:
         p_sheet = doc.add_paragraph()
         r_sheet = p_sheet.add_run(f"Onglet : {source_sheet}")
         r_sheet.italic = True
         r_sheet.font.size = Pt(9)
 
-    # Autres champs choisis
     lines = build_cartel_lines(row, selected_fields)
     for field, value in lines:
         p = doc.add_paragraph()
@@ -196,6 +246,7 @@ def add_cartel_to_doc(doc, row, selected_fields, source_sheet=None):
 def create_word_document(data_by_sheet, selected_fields, document_title, one_cartel_per_page):
     """
     Crée le document Word final.
+
     data_by_sheet = {
         "Liste": dataframe,
         "Repro": dataframe
@@ -210,7 +261,6 @@ def create_word_document(data_by_sheet, selected_fields, document_title, one_car
         sec.left_margin = Cm(2.0)
         sec.right_margin = Cm(2.0)
 
-    # Titre principal
     title_p = doc.add_paragraph()
     title_run = title_p.add_run(document_title)
     title_run.bold = True
@@ -223,7 +273,6 @@ def create_word_document(data_by_sheet, selected_fields, document_title, one_car
     for sheet_index, sheet_name in enumerate(sheet_names):
         df = data_by_sheet[sheet_name]
 
-        # Petit intertitre d'onglet si plusieurs onglets sélectionnés
         if len(sheet_names) > 1:
             p_sheet_title = doc.add_paragraph()
             r_sheet_title = p_sheet_title.add_run(sheet_name)
@@ -250,7 +299,6 @@ def create_word_document(data_by_sheet, selected_fields, document_title, one_car
                     add_horizontal_rule(doc)
                     doc.add_paragraph()
 
-        # espace entre deux onglets si plusieurs onglets et pas de saut de page systématique
         if len(sheet_names) > 1 and not one_cartel_per_page and not is_last_sheet:
             doc.add_paragraph()
             doc.add_paragraph()
@@ -261,9 +309,9 @@ def create_word_document(data_by_sheet, selected_fields, document_title, one_car
     return buffer
 
 
-# -----------------------------
+# --------------------------------------------------
 # Interface principale
-# -----------------------------
+# --------------------------------------------------
 if uploaded:
     try:
         excel_file = pd.ExcelFile(uploaded)
@@ -274,13 +322,10 @@ if uploaded:
 
     st.subheader("Paramètres")
 
-    # Choix des onglets
-    selectable_sheets = [s for s in SHEET_OPTIONS if s in available_sheets]
+    selectable_sheets = [s for s in EXPECTED_SHEETS if s in available_sheets]
 
     if not selectable_sheets:
-        st.error(
-            "Les onglets attendus ('Liste' et/ou 'Repro') n'ont pas été trouvés dans le fichier."
-        )
+        st.error("Les onglets attendus ('Liste' et/ou 'Repro') n'ont pas été trouvés dans le fichier.")
         st.stop()
 
     selected_sheets = st.multiselect(
@@ -293,7 +338,6 @@ if uploaded:
         st.warning("Veuillez sélectionner au moins un onglet.")
         st.stop()
 
-    # Lecture d'aperçu du premier onglet choisi
     preview_sheet = selected_sheets[0]
     try:
         preview_df = read_sheet(uploaded, preview_sheet)
@@ -307,7 +351,6 @@ if uploaded:
         st.subheader(f"Aperçu des données — onglet {preview_sheet}")
         st.dataframe(preview_df.head(10), use_container_width=True)
 
-    # Vérification des champs obligatoires sur chaque onglet sélectionné
     invalid_sheets = {}
     loaded_sheets = {}
 
@@ -329,7 +372,6 @@ if uploaded:
             )
         st.stop()
 
-    # Liste des champs disponibles réellement trouvés
     available_fields = []
     for field in ALL_FIELDS:
         if any(field in df.columns for df in loaded_sheets.values()):
@@ -337,15 +379,12 @@ if uploaded:
 
     st.markdown("### Champs à afficher sur les cartels")
 
-    default_selected_fields = REQUIRED_FIELDS.copy()
-
     selected_fields = st.multiselect(
         "Sélectionner les champs à faire apparaître",
         options=available_fields,
-        default=[field for field in default_selected_fields if field in available_fields]
+        default=[field for field in REQUIRED_FIELDS if field in available_fields]
     )
 
-    # Forcer la présence des champs obligatoires
     missing_required_in_selection = [f for f in REQUIRED_FIELDS if f not in selected_fields]
     if missing_required_in_selection:
         st.warning(
@@ -399,12 +438,9 @@ if uploaded:
             filtered_df = drop_empty_rows(df_sheet, REQUIRED_FIELDS)
 
             if filtered_df.empty:
-                st.warning(
-                    f"Aucune ligne exploitable trouvée dans l'onglet '{sheet_name}'."
-                )
+                st.warning(f"Aucune ligne exploitable trouvée dans l'onglet '{sheet_name}'.")
                 continue
 
-            # On conserve seulement les colonnes utiles si elles existent
             cols_to_keep = [col for col in ["Titre"] + selected_fields if col in filtered_df.columns]
             export_data[sheet_name] = filtered_df[cols_to_keep].copy()
 
@@ -412,12 +448,16 @@ if uploaded:
             st.error("Aucune donnée exploitable n'a été trouvée pour générer les cartels.")
             st.stop()
 
-        buffer = create_word_document(
-            data_by_sheet=export_data,
-            selected_fields=selected_fields,
-            document_title=titre_document,
-            one_cartel_per_page=one_cartel_per_page
-        )
+        try:
+            buffer = create_word_document(
+                data_by_sheet=export_data,
+                selected_fields=selected_fields,
+                document_title=titre_document,
+                one_cartel_per_page=one_cartel_per_page
+            )
+        except Exception as e:
+            st.error(f"Erreur lors de la génération du document Word : {e}")
+            st.stop()
 
         total_cartels = sum(len(df) for df in export_data.values())
 
