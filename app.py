@@ -205,7 +205,7 @@ def build_same_line_block(row, selected_fields):
         if date_auteur:
             parts.append(date_auteur)
 
-    return " — ".join(parts)
+    return " , ".join(parts)
 
 
 def add_cartel_to_doc(doc, row, selected_fields, source_sheet=None):
