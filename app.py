@@ -187,6 +187,7 @@ def build_same_line_block(row, selected_fields):
     """
     Construit la ligne commune :
     Mention Collection pour le cartel, Auteur / Exécutant, Date auteur/exécutant
+    séparés par des virgules.
     """
     parts = []
 
@@ -205,7 +206,7 @@ def build_same_line_block(row, selected_fields):
         if date_auteur:
             parts.append(date_auteur)
 
-    return " , ".join(parts)
+    return ", ".join(parts)
 
 
 def add_cartel_to_doc(doc, row, selected_fields, source_sheet=None):
@@ -290,7 +291,7 @@ def add_cartel_to_doc(doc, row, selected_fields, source_sheet=None):
         r_sheet.font.size = Pt(8.5)
 
 
-def create_word_document(data_by_sheet, selected_fields, document_title, one_cartel_per_page):
+def create_word_document(data_by_sheet, selected_fields, document_title):
     """Crée le document Word final."""
     doc = Document()
     doc.core_properties.title = document_title
@@ -332,14 +333,11 @@ def create_word_document(data_by_sheet, selected_fields, document_title, one_car
             is_last_sheet = sheet_index == len(sheet_names) - 1
 
             if not (is_last_row_of_sheet and is_last_sheet):
-                if one_cartel_per_page:
-                    doc.add_page_break()
-                else:
-                    doc.add_paragraph()
-                    add_horizontal_rule(doc)
-                    doc.add_paragraph()
+                doc.add_paragraph()
+                add_horizontal_rule(doc)
+                doc.add_paragraph()
 
-        if len(sheet_names) > 1 and not one_cartel_per_page and not is_last_sheet:
+        if len(sheet_names) > 1 and not is_last_sheet:
             doc.add_paragraph()
             doc.add_paragraph()
 
@@ -452,8 +450,6 @@ if uploaded:
         value="Cartels"
     )
 
-    one_cartel_per_page = st.checkbox("Un cartel par page", value=False)
-
     if st.button("🪄 Transformer"):
         if not nom_fichier.strip():
             st.error("Veuillez indiquer le nom du document.")
@@ -492,8 +488,7 @@ if uploaded:
             buffer = create_word_document(
                 data_by_sheet=export_data,
                 selected_fields=selected_fields,
-                document_title=titre_document,
-                one_cartel_per_page=one_cartel_per_page
+                document_title=titre_document
             )
         except Exception as e:
             st.error(f"Erreur lors de la génération du document Word : {e}")
