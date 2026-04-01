@@ -6,6 +6,7 @@ Générateur de cartels à partir d'un fichier Excel musée
 - choix des champs à afficher via cases à cocher
 - mise en page fixe des cartels
 - gestion robuste des doublons de colonnes
+- formatage du "e" en exposant dans le champ Date (ex: XIXe siècle)
 - export Word
 """
 
@@ -183,6 +184,38 @@ def drop_empty_rows(df, required_fields):
     return working_df[mask].reset_index(drop=True)
 
 
+def add_date_with_superscript(paragraph, text, font_size=Pt(10.5)):
+    """
+    Ajoute un texte dans un paragraphe en mettant le 'e' de 'XIXe' en exposant.
+    Exemples :
+    - XIXe siècle
+    - Fin du XIXe siècle
+    - XXe siècle
+    """
+    pattern = re.compile(r'([IVXLCDM]+)(e)', re.IGNORECASE)
+    last_idx = 0
+
+    for match in pattern.finditer(text):
+        start, end = match.span()
+
+        if start > last_idx:
+            run = paragraph.add_run(text[last_idx:start])
+            run.font.size = font_size
+
+        run_roman = paragraph.add_run(match.group(1))
+        run_roman.font.size = font_size
+
+        run_e = paragraph.add_run(match.group(2))
+        run_e.font.size = font_size
+        run_e.font.superscript = True
+
+        last_idx = end
+
+    if last_idx < len(text):
+        run = paragraph.add_run(text[last_idx:])
+        run.font.size = font_size
+
+
 def add_cartel_to_doc(doc, row, selected_fields, source_sheet=None):
     """
     Ordre d'affichage :
@@ -244,8 +277,7 @@ def add_cartel_to_doc(doc, row, selected_fields, source_sheet=None):
     if "Date" in selected_fields and date_oeuvre:
         p = doc.add_paragraph()
         p.paragraph_format.space_after = Pt(1)
-        r = p.add_run(date_oeuvre)
-        r.font.size = Pt(10.5)
+        add_date_with_superscript(p, date_oeuvre, font_size=Pt(10.5))
 
     # 6. Technique(s) de l'œuvre originale
     if "Technique(s) de l'œuvre originale" in selected_fields and technique:
