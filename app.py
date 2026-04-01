@@ -8,6 +8,7 @@ Générateur de cartels à partir d'un fichier Excel musée
 - mise en page fixe des cartels
 - gestion robuste des doublons de colonnes
 - formatage du "e" en exposant dans le champ Date (ex: XIXe siècle)
+- uniformisation des apostrophes
 - export Word
 """
 
@@ -93,6 +94,21 @@ def clean_filename(name):
     return name
 
 
+def normalize_apostrophes(text):
+    """
+    Remplace les variantes d'apostrophes par une apostrophe simple.
+    """
+    if not isinstance(text, str):
+        return text
+
+    return (
+        text.replace("’", "'")
+            .replace("ʼ", "'")
+            .replace("`", "'")
+            .replace("´", "'")
+    )
+
+
 def make_unique_columns(columns):
     """
     Rend les noms de colonnes uniques.
@@ -123,6 +139,7 @@ def normalize_columns(df):
 def safe(val):
     """
     Renvoie une chaîne propre, même si val est une Series ou une liste.
+    Uniformise aussi les apostrophes.
     """
     if val is None:
         return ""
@@ -143,7 +160,7 @@ def safe(val):
     except Exception:
         pass
 
-    return str(val).strip()
+    return normalize_apostrophes(str(val).strip())
 
 
 def get_cell_value(row, column_name):
