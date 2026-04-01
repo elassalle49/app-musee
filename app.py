@@ -183,44 +183,28 @@ def drop_empty_rows(df, required_fields):
     return working_df[mask].reset_index(drop=True)
 
 
-def build_same_line_block(row, selected_fields):
-    """
-    Construit la ligne commune :
-    Mention Collection pour le cartel, Auteur / Exécutant, Date auteur/exécutant
-    séparés par des virgules.
-    """
-    parts = []
-
-    if "Mention Collection pour le cartel" in selected_fields:
-        mention = get_cell_value(row, "Mention Collection pour le cartel")
-        if mention:
-            parts.append(mention)
-
-    if "Auteur / Exécutant" in selected_fields:
-        auteur = get_cell_value(row, "Auteur / Exécutant")
-        if auteur:
-            parts.append(auteur)
-
-    if "Date auteur/exécutant" in selected_fields:
-        date_auteur = get_cell_value(row, "Date auteur/exécutant")
-        if date_auteur:
-            parts.append(date_auteur)
-
-    return ", ".join(parts)
-
-
 def add_cartel_to_doc(doc, row, selected_fields, source_sheet=None):
     """
-    Ajoute un cartel au document avec l'ordre demandé :
+    Ordre d'affichage :
     1. Titre
-    2. Provenance
-    3. Date
-    4. Technique(s) de l'œuvre originale
-    5. Mention Collection pour le cartel + Auteur / Exécutant + Date auteur/exécutant
-    6. Editeur
-    7. Information sur l'acquisition
+    2. Auteur / Exécutant, Date auteur/exécutant
+    3. Editeur
+    4. Provenance
+    5. Date
+    6. Technique(s) de l'œuvre originale
+    7. Mention Collection pour le cartel
+    8. Information sur l’acquisition
     """
     titre = get_cell_value(row, "Titre") or "Sans titre"
+
+    auteur = get_cell_value(row, "Auteur / Exécutant")
+    date_auteur = get_cell_value(row, "Date auteur/exécutant")
+    editeur = get_cell_value(row, "Editeur")
+    provenance = get_cell_value(row, "Provenance")
+    date_oeuvre = get_cell_value(row, "Date")
+    technique = get_cell_value(row, "Technique(s) de l'œuvre originale")
+    mention = get_cell_value(row, "Mention Collection pour le cartel")
+    acquisition = get_cell_value(row, "Information sur l'acquisition")
 
     # 1. Titre
     p_titre = doc.add_paragraph()
@@ -229,58 +213,60 @@ def add_cartel_to_doc(doc, row, selected_fields, source_sheet=None):
     r_titre.bold = True
     r_titre.font.size = Pt(14)
 
-    # 2. Provenance
-    if "Provenance" in selected_fields:
-        provenance = get_cell_value(row, "Provenance")
-        if provenance:
-            p = doc.add_paragraph()
-            p.paragraph_format.space_after = Pt(1)
-            r = p.add_run(provenance)
-            r.font.size = Pt(10.5)
+    # 2. Auteur / Exécutant, Date auteur/exécutant
+    auteur_parts = []
+    if "Auteur / Exécutant" in selected_fields and auteur:
+        auteur_parts.append(auteur)
+    if "Date auteur/exécutant" in selected_fields and date_auteur:
+        auteur_parts.append(date_auteur)
 
-    # 3. Date
-    if "Date" in selected_fields:
-        date_oeuvre = get_cell_value(row, "Date")
-        if date_oeuvre:
-            p = doc.add_paragraph()
-            p.paragraph_format.space_after = Pt(1)
-            r = p.add_run(date_oeuvre)
-            r.font.size = Pt(10.5)
-
-    # 4. Technique(s) de l'œuvre originale
-    if "Technique(s) de l'œuvre originale" in selected_fields:
-        technique = get_cell_value(row, "Technique(s) de l'œuvre originale")
-        if technique:
-            p = doc.add_paragraph()
-            p.paragraph_format.space_after = Pt(1)
-            r = p.add_run(technique)
-            r.font.size = Pt(10.5)
-
-    # 5. Ligne commune
-    ligne_commune = build_same_line_block(row, selected_fields)
-    if ligne_commune:
+    if auteur_parts:
         p = doc.add_paragraph()
         p.paragraph_format.space_after = Pt(1)
-        r = p.add_run(ligne_commune)
+        r = p.add_run(", ".join(auteur_parts))
         r.font.size = Pt(10.5)
 
-    # 6. Editeur
-    if "Editeur" in selected_fields:
-        editeur = get_cell_value(row, "Editeur")
-        if editeur:
-            p = doc.add_paragraph()
-            p.paragraph_format.space_after = Pt(1)
-            r = p.add_run(editeur)
-            r.font.size = Pt(10.5)
+    # 3. Editeur
+    if "Editeur" in selected_fields and editeur:
+        p = doc.add_paragraph()
+        p.paragraph_format.space_after = Pt(1)
+        r = p.add_run(editeur)
+        r.font.size = Pt(10.5)
 
-    # 7. Information sur l'acquisition
-    if "Information sur l'acquisition" in selected_fields:
-        acquisition = get_cell_value(row, "Information sur l'acquisition")
-        if acquisition:
-            p = doc.add_paragraph()
-            p.paragraph_format.space_after = Pt(0)
-            r = p.add_run(acquisition)
-            r.font.size = Pt(10.5)
+    # 4. Provenance
+    if "Provenance" in selected_fields and provenance:
+        p = doc.add_paragraph()
+        p.paragraph_format.space_after = Pt(1)
+        r = p.add_run(provenance)
+        r.font.size = Pt(10.5)
+
+    # 5. Date
+    if "Date" in selected_fields and date_oeuvre:
+        p = doc.add_paragraph()
+        p.paragraph_format.space_after = Pt(1)
+        r = p.add_run(date_oeuvre)
+        r.font.size = Pt(10.5)
+
+    # 6. Technique(s) de l'œuvre originale
+    if "Technique(s) de l'œuvre originale" in selected_fields and technique:
+        p = doc.add_paragraph()
+        p.paragraph_format.space_after = Pt(1)
+        r = p.add_run(technique)
+        r.font.size = Pt(10.5)
+
+    # 7. Mention Collection pour le cartel
+    if "Mention Collection pour le cartel" in selected_fields and mention:
+        p = doc.add_paragraph()
+        p.paragraph_format.space_after = Pt(1)
+        r = p.add_run(mention)
+        r.font.size = Pt(10.5)
+
+    # 8. Information sur l’acquisition
+    if "Information sur l'acquisition" in selected_fields and acquisition:
+        p = doc.add_paragraph()
+        p.paragraph_format.space_after = Pt(0)
+        r = p.add_run(acquisition)
+        r.font.size = Pt(10.5)
 
     # Affichage optionnel de l'onglet source si un seul onglet sélectionné
     if source_sheet:
