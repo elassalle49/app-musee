@@ -160,6 +160,10 @@ def safe(val):
     except Exception:
         pass
 
+    # Si c'est un nombre entier lu comme décimal, ex : 5.0 -> 5
+    if isinstance(val, float) and val.is_integer():
+        return str(int(val))
+        
     return normalize_apostrophes(str(val).strip())
 
 
