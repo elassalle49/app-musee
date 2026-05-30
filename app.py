@@ -28,11 +28,21 @@ from docx.oxml.ns import qn
 # --------------------------------------------------
 st.set_page_config(
     page_title="Générateur de cartels",
-    page_icon="🖼️",
+    page_icon="logo_musee.jpg",
     layout="centered"
 )
 
-st.title("🖼️ Générateur de cartels")
+col1, col2 = st.columns([1, 6])
+
+with col1:
+    st.image("logo_musee.jpg", width=85)
+
+with col2:
+    st.markdown(
+        "<h1 style='margin-top: 10px; margin-bottom: 0;'>Générateur de cartels</h1>",
+        unsafe_allow_html=True
+    )
+    
 st.write(
     "Cette interface permet de générer des cartels à partir d’un fichier Excel fourni par le musée."
 )
