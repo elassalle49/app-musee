@@ -18,7 +18,7 @@ import pandas as pd
 import streamlit as st
 from docx import Document
 from docx.shared import Pt, Cm, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_COLOR_INDEX
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
@@ -252,6 +252,7 @@ def add_cartel_to_doc(doc, row, selected_fields, source_sheet=None):
     8. Information sur l’acquisition
     """
     numero_expo = get_cell_value(row, "n°expo")
+    type_cartel = get_cell_value(row, "Type de cartel")
     
     titre = get_cell_value(row, "Titre") or "Sans titre"
 
@@ -272,6 +273,9 @@ def add_cartel_to_doc(doc, row, selected_fields, source_sheet=None):
         r_expo.italic = True
         r_expo.font.size = Pt(9)
         r_expo.font.color.rgb = RGBColor(160, 160, 160)
+
+        if type_cartel.strip().lower() == "développé":
+            r_expo.font.highlight_color = WD_COLOR_INDEX.YELLOW
 
     # 1. Titre
     p_titre = doc.add_paragraph()
@@ -529,8 +533,14 @@ if uploaded:
 
             cols_to_keep = [col for col in ALL_FIELDS if col in filtered_df.columns]
             
+            extra_cols = []
             if "n°expo" in filtered_df.columns:
-                cols_to_keep = ["n°expo"] + cols_to_keep
+                extra_cols.append("n°expo")
+
+            if "Type de cartel" in filtered_df.columns:
+                extra_cols.append("Type de cartel")
+
+            cols_to_keep = extra_cols + cols_to_keep
                 
             export_data[sheet_name] = filtered_df[cols_to_keep].copy()
 
