@@ -17,7 +17,7 @@ import re
 import pandas as pd
 import streamlit as st
 from docx import Document
-from docx.shared import Pt, Cm
+from docx.shared import Pt, Cm, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
@@ -247,6 +247,8 @@ def add_cartel_to_doc(doc, row, selected_fields, source_sheet=None):
     7. Mention Collection pour le cartel
     8. Information sur l’acquisition
     """
+    numero_expo = get_cell_value(row, "n°expo")
+    
     titre = get_cell_value(row, "Titre") or "Sans titre"
 
     auteur = get_cell_value(row, "Auteur / Exécutant")
@@ -257,6 +259,15 @@ def add_cartel_to_doc(doc, row, selected_fields, source_sheet=None):
     technique = get_cell_value(row, "Technique(s) de l'œuvre originale")
     mention = get_cell_value(row, "Mention Collection pour le cartel")
     acquisition = get_cell_value(row, "Information sur l'acquisition")
+
+    # n°expo affiché automatiquement au-dessus du cartel
+    if numero_expo:
+        p_expo = doc.add_paragraph()
+        p_expo.paragraph_format.space_after = Pt(1)
+        r_expo = p_expo.add_run(numero_expo)
+        r_expo.italic = True
+        r_expo.font.size = Pt(9)
+        r_expo.font.color.rgb = RGBColor(160, 160, 160)
 
     # 1. Titre
     p_titre = doc.add_paragraph()
