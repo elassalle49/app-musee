@@ -48,7 +48,7 @@ st.write(
 )
 
 st.markdown(
-    "<h4 style='text-align: center;'>📂 Insérer votre fichier Excel</h4>",
+    "<h4 style='text-align: center;'> Insérer votre fichier Excel</h4>",
     unsafe_allow_html=True
 )
 
@@ -514,7 +514,7 @@ if uploaded:
 
     titre_document = "Cartels"
 
-    if st.button("🪄 Transformer"):
+    if st.button("Transformer"):
         if not nom_fichier.strip():
             st.error("Veuillez indiquer le nom du document.")
             st.markdown("""
@@ -570,9 +570,9 @@ if uploaded:
 
         total_cartels = sum(len(df) for df in export_data.values())
 
-        st.success(f"✅ Document généré avec succès ({total_cartels} cartel(s)) !")
+        st.success(f"Document généré avec succès ({total_cartels} cartel(s)) !")
         st.download_button(
-            label="📥 Télécharger le fichier Word",
+            label="Télécharger le fichier Word",
             data=buffer,
             file_name=f"{nom_fichier}.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
