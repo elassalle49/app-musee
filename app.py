@@ -483,10 +483,7 @@ if uploaded:
         label_visibility="collapsed"
     )
 
-    titre_document = st.text_input(
-        "Titre du document",
-        value="Cartels"
-    )
+    titre_document = "Cartels"
 
     if st.button("🪄 Transformer"):
         if not nom_fichier.strip():
