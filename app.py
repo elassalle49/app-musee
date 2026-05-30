@@ -44,7 +44,7 @@ with col2:
     )
     
 st.write(
-    "Cette interface permet de générer des cartels à partir d’un fichier Excel fourni par le musée."
+    "Cette interface permet de générer des cartels à partir d’un fichier Excel de la liste d'oeuvres d'une exposition."
 )
 
 st.markdown(
