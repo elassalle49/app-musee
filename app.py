@@ -28,14 +28,14 @@ from docx.oxml.ns import qn
 # --------------------------------------------------
 st.set_page_config(
     page_title="Générateur de cartels",
-    page_icon="logo_musee.jpg",
+    page_icon="logo_musee.png",
     layout="centered"
 )
 
 col1, col2 = st.columns([1, 6])
 
 with col1:
-    st.image("logo_musee.jpg", width=85)
+    st.image("logo_musee.png", width=85)
 
 with col2:
     st.markdown(
