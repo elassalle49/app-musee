@@ -32,26 +32,6 @@ st.set_page_config(
     layout="centered"
 )
 
-st.markdown("""
-    <style>
-    /* Cadre des éléments sélectionnés dans les multiselect */
-    div[data-baseweb="tag"] {
-        border-color: #8B6914 !important;
-        background-color: rgba(139, 105, 20, 0.12) !important;
-    }
-
-    /* Texte des éléments sélectionnés */
-    div[data-baseweb="tag"] span {
-        color: #8B6914 !important;
-    }
-
-    /* Croix de suppression dans les tags */
-    div[data-baseweb="tag"] svg {
-        fill: #8B6914 !important;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
 st.title("🖼️ Générateur de cartels")
 st.write(
     "Cette interface permet de générer des cartels à partir d’un fichier Excel fourni par le musée."
