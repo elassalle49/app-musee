@@ -524,6 +524,10 @@ if uploaded:
                 continue
 
             cols_to_keep = [col for col in ALL_FIELDS if col in filtered_df.columns]
+            
+            if "n°expo" in filtered_df.columns:
+                cols_to_keep = ["n°expo"] + cols_to_keep
+                
             export_data[sheet_name] = filtered_df[cols_to_keep].copy()
 
         if not export_data:
